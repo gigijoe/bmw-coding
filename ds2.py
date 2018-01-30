@@ -1,3 +1,4 @@
+#-*-coding:utf-8 -*-
 #from hexdump import hexdump
 import serial
 import time
@@ -5,30 +6,33 @@ import time
 import struct
 from struct import unpack
 
-CENTRAL_BODY = 0x00
-MOTRONIC = 0x12
+ZKE = 0x00 # Central Body Electronics / Zentrale Karosserieelektronik
+DME = 0x12 # Digital Motor Electronics
 CENTRAL_BODY = 0x21
-AUTOMATIC_TRANSMISSION = 0x32
-IMMOBILIZER_ALARM = 0x44
-ABS = 0x56
-CLIMATE_CONTROL = 0x5B
-IKE = 0x80
-AIRBAG = 0xA4
-LCM = 0xD0
+EGS = 0x32 # Electronic Transmission Control - Electronische Getriebe Steuerung
+EWS = 0x44 # Electronic Immobiliser / Elektronische Wegfahrsperre
+DSC = 0x56 # Dynamic Stability Control
+IHKA = 0x5B # Auto Climate Control / Integrierte Heizung Kühlung
+IKE = 0x80 # Instrument Cluster
+AIRBAG = 0xA4 # Multi Restraint System
+LCM = 0xD0 # Light Switching Center / Lichtschaltzentrum
+MID = 0xC0 # Multi Information Display
+RADIO = 0x68 # Radio
+SZM = 0xf5 # Center Console Switching Center
 
 class Application(object):
     def __init__(self):
         self._device = serial.Serial("/dev/ttyS0", 9600, parity=serial.PARITY_EVEN, timeout=0.5)
 
     def run(self):
-        for address in [MOTRONIC, AUTOMATIC_TRANSMISSION, IKE, LCM]:
-            #print("Querying " + hex(address))
-            #data = self._execute(address, bytes([0x00]))
-            raw = b'\x12\x1D\xA0\x02\xBF\x00\x26\x17\xAB\x4E\x41\x59\x02\x49\x07\x24\x6A\x88\x22\x7F\x80\x00\x80\x00\x38\x38\xCE\xCE\x09'
-            #raw = b'\x12\x1D\xA0\x03\x20\x00\x24\x10\xA3\x91\x38\x6A\x01\xB9\x00\xCE\x4E\x22\x1E\x88\x8F\x3A\x6D\xBA\x87\x6C\xCE\xCE\xDD'
+        for address in [ DME ]:
+            print("Querying " + hex(address))
+            #data = self._execute(address, bytes([0x0B, 0x03]))
+            #raw = b'\x12\x1D\xA0\x02\xBF\x00\x26\x17\xAB\x4E\x41\x59\x02\x49\x07\x24\x6A\x88\x22\x7F\x80\x00\x80\x00\x38\x38\xCE\xCE\x09'
+            raw = b'\x12\x1D\xA0\x03\x20\x00\x24\x10\xA3\x91\x38\x6A\x01\xB9\x00\xCE\x4E\x22\x1E\x88\x8F\x3A\x6D\xBA\x87\x6C\xCE\xCE\xDD'
             data = struct.unpack('<' + 'B'*len(raw), raw)
-            if data[0] == MOTRONIC:
-                self._decode_motronic(raw[3:])
+            if data[0] == DME:
+                self._decode_dme(raw[3:])
             else:
                 print(data[0])
             #print("Got:")
@@ -92,8 +96,8 @@ class Application(object):
             result ^= ord(b) 
         return result
 
-    def _decode_motronic(self, data):
-        print("<<< _decode_motronic >>>")        
+    def _decode_dme(self, data):
+        print("<<< _decode_dme >>>")        
         engine_speed = struct.unpack('>H'*1, data[0:2])
         print("engine speed : " + str(engine_speed[0]) + " 1/min")
         vehicle_speed = struct.unpack('>B'*1, data[2])
