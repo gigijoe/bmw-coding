@@ -27,17 +27,16 @@ class Application(object):
     def run(self):
         for address in [ DME ]:
             print("Querying " + hex(address))
+            data = self._execute(address, bytes(b'\x0B\x03'))
             #data = self._execute(address, bytes([0x0B, 0x03]))
             #raw = b'\x12\x1D\xA0\x02\xBF\x00\x26\x17\xAB\x4E\x41\x59\x02\x49\x07\x24\x6A\x88\x22\x7F\x80\x00\x80\x00\x38\x38\xCE\xCE\x09'
-            raw = b'\x12\x1D\xA0\x03\x20\x00\x24\x10\xA3\x91\x38\x6A\x01\xB9\x00\xCE\x4E\x22\x1E\x88\x8F\x3A\x6D\xBA\x87\x6C\xCE\xCE\xDD'
-            data = struct.unpack('<' + 'B'*len(raw), raw)
+            #raw = b'\x12\x1D\xA0\x03\x20\x00\x24\x10\xA3\x91\x38\x6A\x01\xB9\x00\xCE\x4E\x22\x1E\x88\x8F\x3A\x6D\xBA\x87\x6C\xCE\xCE\xDD'
+            #data = struct.unpack('<' + 'B'*len(raw), raw)
             if data[0] == DME:
                 self._decode_dme(raw[3:])
             else:
                 print(data[0])
-            #print("Got:")
-            #hexdump(data)
-            # Delay to work around unknown issue (perhaps a bug in MultiCom?)
+
             time.sleep(0.03)
 
     def _execute(self, address, payload):
@@ -68,32 +67,49 @@ class Application(object):
 
     def _write(self, address, payload):
         size = 2 + len(payload) + 1
-        message = bytes([address, size]) + payload
-        buf = message + bytes([self._checksum(message)])
-        #hexdump(buf)
-        self._device.write(buf)
+        #message = bytes([address, size]) + payload        
+        #buf = message + bytes([self._checksum(message)])
+
+        p = bytearray()
+        p.append(address)
+        p.append(size)
+        for x in payload:
+            p.append(x)
+        p.append(self._checksum(p))
+        print("TX : " + ''.join('{:02x} '.format(x) for x in p))
+        #print hexdump(p, size)
+        #print(message)
+        self._device.write(p)
 
     def _read(self):
+        p = bytearray()
         try:
             address = self._device.read(1)[0]
         except IndexError:
             return None
+        #address = 0x12
+        p.append(address)
         size = self._device.read(1)[0]
+        #size = 0x1D
+        p.append(size)
         remaining = size - 3
         if remaining > 0:
             payload = self._device.read(remaining)
-        else:
-            payload = bytes([])
-        expected_checksum = self._checksum(bytes([address, size]) + payload)
+            for x in payload:
+                p.append(x)
+        expected_checksum = self._checksum(p)
         actual_checksum = self._device.read(1)[0]
+        #actual_checksum = 0xDD
+        p.append(actual_checksum)
+        print("RX : " + ''.join('{:02x} '.format(x) for x in p))
         if actual_checksum != expected_checksum:
             raise ProtocolError("invalid checksum")
-        return (address, payload)
+        return p
 
     def _checksum(self, message):
         result = 0
         for b in message:
-            result ^= ord(b) 
+            result ^= b
         return result
 
     def _decode_dme(self, data):
