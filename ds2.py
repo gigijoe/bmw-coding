@@ -30,12 +30,15 @@ class DS2(object):
 
     def run(self):
         for address in [ DME ]:
-            print("Querying " + hex(address))
+            print("Querying DME " + hex(address))
             data = self._execute(address, bytes(b'\x00'))
             #raw = b'\x12\x1D\xA0\x02\xBF\x00\x26\x17\xAB\x4E\x41\x59\x02\x49\x07\x24\x6A\x88\x22\x7F\x80\x00\x80\x00\x38\x38\xCE\xCE\x09'
             #raw = b'\x12\x1D\xA0\x03\x20\x00\x24\x10\xA3\x91\x38\x6A\x01\xB9\x00\xCE\x4E\x22\x1E\x88\x8F\x3A\x6D\xBA\x87\x6C\xCE\xCE\xDD'
             #data = struct.unpack('<' + 'B'*len(raw), raw)
             time.sleep(0.03)
+
+    def sniffer(self):
+        self._read()
 
     def _execute(self, address, payload):
         self._write(address, payload)
@@ -80,7 +83,6 @@ class DS2(object):
             address = self._device.read(1)[0]
         except IndexError:
             return None
-        #address = 0x12
         p.append(address)
         size = self._device.read(1)[0]
         #size = 0x1D
@@ -148,7 +150,7 @@ class DS2(object):
 class ME72(DS2):
     def run(self):
         for address in [ DME ]:
-            print("Querying " + hex(address))
+            print("Querying DME " + hex(address))
             source = bytes(b'\xf1')
             data = self._execute(address, source, bytes(b'\xa2')) # b8 12 f1 01 a2 f8
             time.sleep(1.0)
@@ -183,10 +185,8 @@ class ME72(DS2):
         source = self._device.read(1)[0]
         p.append(source)
         address = self._device.read(1)[0]
-        #address = 0x12
         p.append(address)
         size = self._device.read(1)[0]
-        #size = 0x1D
         p.append(size)
         remaining = ord(size)
         if remaining > 0:
@@ -195,7 +195,6 @@ class ME72(DS2):
                 p.append(x)
         expected_checksum = self._checksum(p)
         actual_checksum = self._device.read(1)[0]
-        #actual_checksum = 0xDD
         p.append(actual_checksum)
         print("RX : " + ''.join('{:02x} '.format(x) for x in p))
         if ord(actual_checksum) != expected_checksum:
@@ -313,7 +312,7 @@ class ME72(DS2):
 class ZF5HP24(DS2):
     def run(self):
         for address in [ EGS ]:
-            print("Querying " + hex(address))
+            print("Querying EGS " + hex(address))
             data = self._execute(address, bytes(b'\x00'))
             time.sleep(1.0)
             data = self._execute(address, bytes(b'\x0B\x03'))
@@ -329,11 +328,8 @@ class ZF5HP24(DS2):
         sender = reply[0]
         length = reply[1]
         status = reply[2]
-        #sender, payload = reply
-        #self._device.timeout = None
         if sender != address:
             raise ProtocolError("unexpected sender")
-        #status = payload[0]
         if status != 0xa0:
             if status == 0xa1:
                 raise ComputerBusy("computer busy")
@@ -456,10 +452,8 @@ class ZF5HP24(DS2):
             address = self._device.read(1)[0]
         except IndexError:
             return None
-        #address = 0x12
         p.append(address)
         size = self._device.read(1)[0]
-        #size = 0x1D
         p.append(size)
         remaining = ord(size) - 3
         if remaining > 0:
@@ -468,7 +462,6 @@ class ZF5HP24(DS2):
                 p.append(x)
         expected_checksum = self._checksum(p)
         actual_checksum = self._device.read(1)[0]
-        #actual_checksum = 0xDD
         p.append(actual_checksum)
         print("RX : " + ''.join('{:02x} '.format(x) for x in p))
         if ord(actual_checksum) != expected_checksum:
@@ -499,3 +492,6 @@ egs.run()
 
 dme = ME72()
 dme.run()
+
+while 1:
+    dme.sniffer()
