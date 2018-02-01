@@ -151,13 +151,13 @@ class ME72(DS2):
             print("Querying " + hex(address))
             source = bytes(b'\xf1')
             data = self._execute(address, source, bytes(b'\xa2')) # b8 12 f1 01 a2 f8
-            time.sleep(2.0)
+            time.sleep(1.0)
+            data = self._execute(address, source, bytes(b'\x22\x40\x00')) # b8 12 f1 03 22 40 00 3a
+            time.sleep(1.0)
             data = self._execute(address, source, bytes(b'\x22\x40\x07')) # b8 12 f1 03 22 40 07 3d 
-            time.sleep(2.0)
-            data = self._execute(address, source, bytes(b'\x22\x40\x01'))
-            time.sleep(2.0)
-            data = self._execute(address, source, bytes(b'\x22\x40\x00'))
-            time.sleep(2.0)
+            time.sleep(1.0)
+            #data = self._execute(address, source, bytes(b'\x22\x40\x05'))
+            #time.sleep(1.0)
 
     def _write(self, address, source, payload):
         p = bytearray()
@@ -242,10 +242,10 @@ class ME72(DS2):
             print("diag index : " + diag_index.decode('utf-8'))
             bus_index = p[14:16]
             print("bus index : " + bus_index.decode('utf-8'))
-            build_date_week = struct.unpack('>H'*1, data[16:18])
-            print("build date week : " + str(build_date_week[0]))
-            build_date_year = struct.unpack('>H'*1, data[18:20])
-            print("build date year : " + str(build_date_year[0]))
+            build_date_week = p[16:18]
+            print("build date week : " + build_date_week.decode('utf-8'))
+            build_date_year = p[18:20]
+            print("build date year : " + build_date_year.decode('utf-8'))
             supplier = p[20:26]
             print("supplier : " + supplier.decode('utf-8'))
         
@@ -270,20 +270,35 @@ class ME72(DS2):
                 5e # coolant outlet temperature
                 0c 80 0c 80 0c 80 0c 80 0c 80 0c 80 0c 40 0c 80 08
             """
-            speed = struct.unpack('>B'*1, p[9])
-            print("speed : " + str(speed[0] * 1.25) + " km/h")
+            speed = p[9]
+            print("speed : " + str(speed * 1.25) + " km/h")
             rpm = struct.unpack('>H'*1, p[10:12])
             print("rpm : " + str(rpm[0] * 0.25) + " RPM")
-            intake_air_temp = struct.unpack('>B'*1, p[17])
-            print("intake air temp : " + str(intake_air_temp[0] * 0.75 - 48.0) + " C")
-            coolant_temp = struct.unpack('>B'*1, p[18])
-            print("coolant temp : " + str(coolant_temp[0] * 0.75 - 48.0) + " C")
-            engine_throttle_angle = struct.unpack('>B'*1, p[20])
-            print("engine throttle angle : " + str(engine_throttle_angle[0] * 0.39216) + " %")
-            engine_air_mass = struct.unpack('>B'*1, p[21])
-            print("engine air mass : " + str(engine_air_mass[0] * 0.1) + " kg/h")
-            coolant_outlet_temp = struct.unpack('>B'*1, p[28])
-            print("coolant outlet temp : " + str(coolant_outlet_temp[0] * 0.75 - 48.0) + " C")
+            intake_air_temp = p[17]
+            print("intake air temp : " + str(intake_air_temp * 0.75 - 48.0) + " C")
+            coolant_temp = p[18]
+            print("coolant temp : " + str(coolant_temp * 0.75 - 48.0) + " C")
+            engine_throttle_angle = p[20]
+            print("engine throttle angle : " + str(engine_throttle_angle * 0.39216) + " %")
+            engine_air_mass = p[21]
+            print("engine air mass : " + str(engine_air_mass * 0.1) + " kg/h")
+            coolant_outlet_temp = p[28]
+            print("coolant outlet temp : " + str(coolant_outlet_temp * 0.75 - 48.0) + " C")
+        
+        elif payload == bytes(b'\x22\x40\x05'):
+            print("Unimplement")
+
+        elif payload == bytes(b'\x22\x40\x07'):
+            """
+            b8 f1 12 05 62 40 07 01 90 ea
+            """
+            b = p[3]
+            print("neutral switch : " + str(b & (1 << 0)))
+            print("acceleration enrichment : " + str(b & (1 << 1)))
+            print("oxygen sensor after bank 2 ready : " + str(b & (1 << 2)))
+            print("oxygen sensor after bank 1 ready : " + str(b & (1 << 3)))
+            print("oxygen sensor before bank 2 ready : " + str(b & (1 << 4)))
+            print("oxygen sensor before bank 1 ready : " + str(b & (1 << 5)))
 
     def _checksum(self, message):
         result = 0
@@ -334,7 +349,7 @@ class ZF5HP24(DS2):
                 00 4f 
                 4b # coolant temperature 
                 54 # transmission temperature
-                93 01  01 01 01 ff ff ff ff ff
+                93 01 01 01 01 ff ff ff ff ff
                 02 
                 dc # shifter program 
                 00 # cruise control mode
@@ -344,16 +359,56 @@ class ZF5HP24(DS2):
                 59 b5
 
             """
-            rpm = struct.unpack('>B'*1, p[1])
-            print("rpm : " + str(rpm[0] * 32) + " RPM")
-            input_turbine_rpm = struct.unpack('>B'*1, p[2])
-            print("input turbine rpm : " + str(input_turbine_rpm[0] * 32) + " RPM")
-            output_shift_rpm = struct.unpack('>B'*1, p[3])
-            print("output shift rpm : " + str(output_shift_rpm[0] * 32) + " RPM")
-            coolant_temp = struct.unpack('>B'*1, p[6])
-            print("coolant temperature : " + str(coolant_temp[0] - 48) + " C")
-            transmission_temp = struct.unpack('>B'*1, p[7])
-            print("transmission temperature : " + str(transmission_temp[0] - 40) + " C")
+            rpm = p[1] # struct.unpack('>B'*1, p[1])
+            print("rpm : " + str(rpm * 32) + " RPM")
+            input_turbine_rpm = p[2]
+            print("input turbine rpm : " + str(input_turbine_rpm * 32) + " RPM")
+            output_shift_rpm = p[3]
+            print("output shift rpm : " + str(output_shift_rpm * 32) + " RPM")
+            coolant_temp = p[6]
+            print("coolant temperature : " + str(coolant_temp - 48) + " C")
+            transmission_temp = p[7]
+            print("transmission temperature : " + str(transmission_temp - 48) + " C")
+            cruise_control = p[20]
+            if cruise_control == 0x0:
+                printf("cruise control mode : off")
+            elif cruise_control == 0x20:
+                printf("cruise control mode : on")
+            elif cruise_control == 0x40:
+                printf("cruise control mode : resume")
+            elif cruise_control == 0x60:
+                printf("cruise control mode : accel")
+            elif cruise_control == 0x80:
+                printf("cruise control mode : decel")
+            else:
+                printf("cruise control mode : unknown")
+
+            gear = p[21]            
+            g = gear >> 5
+            if g == 0x6:
+                print("gear : 1")
+            elif g == 0x7:
+                print("gear : reverse")
+            else:
+                print("gear : " + str(gear >> 5))
+
+            shifter = gear & 0x3
+            if shifter == 0x1:
+                print("shifter steptronic : up")
+            elif shifter == 0x2:
+                print("shifter steptronic : down")
+            else:
+                print("shifter steptronic : neutral")
+            kickdown = gear & 0x10
+            if kickdown:
+                print("kickdown : yes")
+            else:
+                print("kickdown : no")
+            vehicle_in_curve = gear & 0x8
+            if vehicle_in_curve:
+                print("vehicle in curve : yes")
+            else:
+                print("vehicle in curve : no")
 
         elif status == 0xa1:
             raise ComputerBusy("computer busy")
