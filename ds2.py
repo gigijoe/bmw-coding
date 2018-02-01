@@ -314,12 +314,10 @@ class ZF5HP24(DS2):
     def run(self):
         for address in [ EGS ]:
             print("Querying " + hex(address))
+            data = self._execute(address, bytes(b'\x00'))
+            time.sleep(1.0)
             data = self._execute(address, bytes(b'\x0B\x03'))
-            #data = self._execute(address, bytes([0x0B, 0x03]))
-            #raw = b'\x12\x1D\xA0\x02\xBF\x00\x26\x17\xAB\x4E\x41\x59\x02\x49\x07\x24\x6A\x88\x22\x7F\x80\x00\x80\x00\x38\x38\xCE\xCE\x09'
-            #raw = b'\x12\x1D\xA0\x03\x20\x00\x24\x10\xA3\x91\x38\x6A\x01\xB9\x00\xCE\x4E\x22\x1E\x88\x8F\x3A\x6D\xBA\x87\x6C\xCE\xCE\xDD'
-            #data = struct.unpack('<' + 'B'*len(raw), raw)
-            time.sleep(0.03)
+            time.sleep(1.0)
 
     def _execute(self, address, payload):
         self._write(address, payload)
@@ -336,9 +334,31 @@ class ZF5HP24(DS2):
         if sender != address:
             raise ProtocolError("unexpected sender")
         #status = payload[0]
-        if status == 0xa0:
-            p = reply[2:]
-            #return reply
+        if status != 0xa0:
+            if status == 0xa1:
+                raise ComputerBusy("computer busy")
+            elif status == 0xa2:
+                raise InvalidCommand("invalid parameter")
+            elif status == 0xff:
+                raise InvalidCommand("invalid command")
+            else:
+                raise ProtocolError("unknown status")
+            return
+
+        p = reply[2:]
+        if payload == bytes(b'\x00'):
+            part_number = p[1:8]
+            print("part number : " + part_number.decode('utf-8'))
+            hardware_number = p[8:10]
+            print("hardware number : " + hardware_number.decode('utf-8'))
+            coding_index = p[10:12]
+            print("coding index : " + coding_index.decode('utf-8'))
+            diag_index = p[12:14]
+            print("diag index : " + diag_index.decode('utf-8'))
+            bus_index = p[14:16]
+            print("bus index : " + bus_index.decode('utf-8'))
+
+        elif payload == bytes(b'\x0B\x03'):
             """
                 32 05 0b 03 3f
                 
@@ -368,18 +388,18 @@ class ZF5HP24(DS2):
             coolant_temp = p[6]
             print("coolant temperature : " + str(coolant_temp - 48) + " C")
             transmission_temp = p[7]
-            print("transmission temperature : " + str(transmission_temp - 48) + " C")
+            print("transmission temperature : " + str(transmission_temp - 54) + " C")
             cruise_control = p[20]
             if cruise_control == 0x0:
-                printf("cruise control mode : off")
+                print("cruise control mode : off")
             elif cruise_control == 0x20:
-                printf("cruise control mode : on")
+                print("cruise control mode : on")
             elif cruise_control == 0x40:
-                printf("cruise control mode : resume")
+                print("cruise control mode : resume")
             elif cruise_control == 0x60:
-                printf("cruise control mode : accel")
+                print("cruise control mode : accel")
             elif cruise_control == 0x80:
-                printf("cruise control mode : decel")
+                print("cruise control mode : decel")
             else:
                 printf("cruise control mode : unknown")
 
