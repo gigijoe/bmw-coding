@@ -55,16 +55,15 @@ class DS2(object):
         if sender != address:
             raise ProtocolError("unexpected sender")
         #status = payload[0]
-        if status == 0xa0:
-            return reply
-        elif status == 0xa1:
-            raise ComputerBusy("computer busy")
-        elif status == 0xa2:
-            raise InvalidCommand("invalid parameter")
-        elif status == 0xff:
-            raise InvalidCommand("invalid command")
-        else:
-            raise ProtocolError("unknown status")
+        if status != 0xa0:
+            if status == 0xa1:
+                raise ComputerBusy("computer busy")
+            elif status == 0xa2:
+                raise InvalidCommand("invalid parameter")
+            elif status == 0xff:
+                raise InvalidCommand("invalid command")
+            else:
+                raise ProtocolError("unknown status")
 
     def _write(self, address, payload):
         size = 2 + len(payload) + 1
@@ -425,15 +424,6 @@ class ZF5HP24(DS2):
                 print("vehicle in curve : yes")
             else:
                 print("vehicle in curve : no")
-
-        elif status == 0xa1:
-            raise ComputerBusy("computer busy")
-        elif status == 0xa2:
-            raise InvalidCommand("invalid parameter")
-        elif status == 0xff:
-            raise InvalidCommand("invalid command")
-        else:
-            raise ProtocolError("unknown status")
 
     def _write(self, address, payload):
         size = 2 + len(payload) + 1
