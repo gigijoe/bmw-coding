@@ -20,50 +20,23 @@ MID = 0xC0 # Multi Information Display
 RADIO = 0x68 # Radio
 SZM = 0xf5 # Center Console Switching Center
 
-#
-# MS41
-#
-
-class DS2(object):
+class K_Line(object):
     def __init__(self):
         self._device = serial.Serial("/dev/ttyUSB0", 9600, parity=serial.PARITY_EVEN, timeout=0.5)    
 
-    def run(self):
-        for address in [ DME ]:
-            print("Querying DME " + hex(address))
-            data = self._execute(address, bytes(b'\x00'))
-            #raw = b'\x12\x1D\xA0\x02\xBF\x00\x26\x17\xAB\x4E\x41\x59\x02\x49\x07\x24\x6A\x88\x22\x7F\x80\x00\x80\x00\x38\x38\xCE\xCE\x09'
-            #raw = b'\x12\x1D\xA0\x03\x20\x00\x24\x10\xA3\x91\x38\x6A\x01\xB9\x00\xCE\x4E\x22\x1E\x88\x8F\x3A\x6D\xBA\x87\x6C\xCE\xCE\xDD'
-            #data = struct.unpack('<' + 'B'*len(raw), raw)
-            time.sleep(0.03)
+    def _checksum(self, message):
+        result = 0
+        for b in message:
+            result ^= b
+        return result
 
+#
+# DS2
+#
+
+class DS2(K_Line):
     def sniffer(self):
         self._read()
-
-    def _execute(self, address, payload):
-        self._write(address, payload)
-        echo = self._read()
-        #self._device.timeout = 0.1
-        reply = self._read()
-        if reply is None:
-            raise InvalidAddress("invalid address")
-        sender = reply[0]
-        length = reply[1]
-        status = reply[2]
-        #sender, payload = reply
-        #self._device.timeout = None
-        if sender != address:
-            raise ProtocolError("unexpected sender")
-        #status = payload[0]
-        if status != 0xa0:
-            if status == 0xa1:
-                raise ComputerBusy("computer busy")
-            elif status == 0xa2:
-                raise InvalidCommand("invalid parameter")
-            elif status == 0xff:
-                raise InvalidCommand("invalid command")
-            else:
-                raise ProtocolError("unknown status")
 
     def _write(self, address, payload):
         size = 2 + len(payload) + 1
@@ -93,72 +66,19 @@ class DS2(object):
                 p.append(x)
         expected_checksum = self._checksum(p)
         actual_checksum = self._device.read(1)[0]
-        #actual_checksum = 0xDD
         p.append(actual_checksum)
         print("RX : " + ''.join('{:02x} '.format(x) for x in p))
         if ord(actual_checksum) != expected_checksum:
             raise ProtocolError("invalid checksum")
         return p
 
-    def _checksum(self, message):
-        result = 0
-        for b in message:
-            result ^= b
-        return result
-
-    def _decode_dme(self, data):
-        print("<<< _decode_dme >>>")        
-        engine_speed = struct.unpack('>H'*1, data[0:2])
-        print("engine speed : " + str(engine_speed[0]) + " 1/min")
-        vehicle_speed = struct.unpack('>B'*1, data[2])
-        print("vehicle speed : " + str(vehicle_speed[0]) + " km/h")
-        throttle_position = struct.unpack('>B'*1, data[3])
-        print("throttle position : " + str(throttle_position[0] * 0.47) + " %")
-        engine_load = struct.unpack('>H'*1, data[4:6])
-        print("engine load : " + str(engine_load[0] * 0.021) + " mg/stroke")
-        air_temp = struct.unpack('>B'*1, data[6])
-        print("air temp : " + str(air_temp[0] * (-0.458) + 108) + " C")
-        coolant_temp = struct.unpack('>B'*1, data[7])
-        print("coolant temp : " + str(coolant_temp[0] * (-0.458) + 108) + " C")
-        ignition_time_advance = struct.unpack('>B'*1, data[8])
-        print("ignition time advance : " + str(ignition_time_advance[0] * (0.373) + (-23.6)) + " BTDC")
-        injector_pulsewidth = struct.unpack('>H'*1, data[9:11])
-        print("injector pulse width : " + str(injector_pulsewidth[0] * 0.00534) + " ms")
-        IACV = struct.unpack('>H'*1, data[11:13])
-        print("IACV : " + str(IACV[0] * 0.00153) + " %")
-        # struct.unpack('>H'*1, data[13:15])
-        vanos_angle = struct.unpack('>B'*1, data[15])
-        print("vanos angle : " + str(vanos_angle[0] * 0.3745) + " KW degrees")
-        battery_voltage = struct.unpack('>B'*1, data[16])
-        print("battery voltage : " + str(battery_voltage[0] * 0.10196) + " volts")
-        # Lambda Integrator 1
-        # Lambda Integrator 2
-        lambda_upstream_heater_1 = struct.unpack('>B'*1, data[21])
-        print("lambda upstream heater 1 : " + str(lambda_upstream_heater_1[0] * 0.3906) + " %")
-        lambda_upstream_heater_2 = struct.unpack('>B'*1, data[22])
-        print("lambda upstream heater 2 : " + str(lambda_upstream_heater_2[0] * 0.3906) + " %")
-        lambda_downstream_heater_1 = struct.unpack('>B'*1, data[23])
-        print("lambda downstream heater 1 : " + str(lambda_downstream_heater_1[0] * 0.3906) + " %")
-        lambda_downstream_heater_2 = struct.unpack('>B'*1, data[24])
-        print("lambda downstream heater 2 : " + str(lambda_downstream_heater_2[0] * 0.3906) + " %")
-
 #
-# Bosch Motronic v7.2 (M62TU) - KWP2000 protocol
+# KWP2000
 #
 
-class ME72(DS2):
-    def run(self):
-        for address in [ DME ]:
-            print("Querying DME " + hex(address))
-            source = bytes(b'\xf1')
-            data = self._execute(address, source, bytes(b'\xa2')) # b8 12 f1 01 a2 f8
-            time.sleep(1.0)
-            data = self._execute(address, source, bytes(b'\x22\x40\x00')) # b8 12 f1 03 22 40 00 3a
-            time.sleep(1.0)
-            data = self._execute(address, source, bytes(b'\x22\x40\x07')) # b8 12 f1 03 22 40 07 3d 
-            time.sleep(1.0)
-            #data = self._execute(address, source, bytes(b'\x22\x40\x05'))
-            #time.sleep(1.0)
+class KWP2000(K_Line):
+    def sniffer(self):
+        self._read()
 
     def _write(self, address, source, payload):
         p = bytearray()
@@ -199,6 +119,107 @@ class ME72(DS2):
         if ord(actual_checksum) != expected_checksum:
             raise ProtocolError("invalid checksum")
         return p
+
+#
+# MS41
+#
+
+class MS41(DS2):
+    def run(self):
+        for address in [ DME ]:
+            print("Querying DME " + hex(address))
+            data = self._execute(address, bytes(b'\x00'))
+            time.sleep(1.0)
+            #raw = b'\x12\x1D\xA0\x02\xBF\x00\x26\x17\xAB\x4E\x41\x59\x02\x49\x07\x24\x6A\x88\x22\x7F\x80\x00\x80\x00\x38\x38\xCE\xCE\x09'
+            #raw = b'\x12\x1D\xA0\x03\x20\x00\x24\x10\xA3\x91\x38\x6A\x01\xB9\x00\xCE\x4E\x22\x1E\x88\x8F\x3A\x6D\xBA\x87\x6C\xCE\xCE\xDD'
+            #data = struct.unpack('<' + 'B'*len(raw), raw)
+
+    def _execute(self, address, payload):
+        self._write(address, payload)
+        echo = self._read()
+        #self._device.timeout = 0.1
+        reply = self._read()
+        if reply is None:
+            raise InvalidAddress("invalid address")
+        sender = reply[0]
+        length = reply[1]
+        status = reply[2]
+        #sender, payload = reply
+        #self._device.timeout = None
+        if sender != address:
+            raise ProtocolError("unexpected sender")
+        #status = payload[0]
+        if status != 0xa0:
+            if status == 0xa1:
+                raise ComputerBusy("computer busy")
+            elif status == 0xa2:
+                raise InvalidCommand("invalid parameter")
+            elif status == 0xff:
+                raise InvalidCommand("invalid command")
+            else:
+                raise ProtocolError("unknown status")
+            return
+
+        p = reply[2:]
+        if payload == bytes(b'\xa2'):
+            engine_speed = struct.unpack('>H'*1, p[0:2])
+            print("engine speed : " + str(engine_speed[0]) + " 1/min")
+            vehicle_speed = struct.unpack('>B'*1, p[2])
+            print("vehicle speed : " + str(vehicle_speed[0]) + " km/h")
+            throttle_position = struct.unpack('>B'*1, p[3])
+            print("throttle position : " + str(throttle_position[0] * 0.47) + " %")
+            engine_load = struct.unpack('>H'*1, p[4:6])
+            print("engine load : " + str(engine_load[0] * 0.021) + " mg/stroke")
+            air_temp = struct.unpack('>B'*1, p[6])
+            print("air temp : " + str(air_temp[0] * (-0.458) + 108) + " C")
+            coolant_temp = struct.unpack('>B'*1, p[7])
+            print("coolant temp : " + str(coolant_temp[0] * (-0.458) + 108) + " C")
+            ignition_time_advance = struct.unpack('>B'*1, p[8])
+            print("ignition time advance : " + str(ignition_time_advance[0] * (0.373) + (-23.6)) + " BTDC")
+            injector_pulsewidth = struct.unpack('>H'*1, p[9:11])
+            print("injector pulse width : " + str(injector_pulsewidth[0] * 0.00534) + " ms")
+            IACV = struct.unpack('>H'*1, p[11:13])
+            print("IACV : " + str(IACV[0] * 0.00153) + " %")
+            # struct.unpack('>H'*1, p[13:15])
+            vanos_angle = struct.unpack('>B'*1, p[15])
+            print("vanos angle : " + str(vanos_angle[0] * 0.3745) + " KW degrees")
+            battery_voltage = struct.unpack('>B'*1, p[16])
+            print("battery voltage : " + str(battery_voltage[0] * 0.10196) + " volts")
+            # Lambda Integrator 1
+            # Lambda Integrator 2
+            lambda_upstream_heater_1 = struct.unpack('>B'*1, p[21])
+            print("lambda upstream heater 1 : " + str(lambda_upstream_heater_1[0] * 0.3906) + " %")
+            lambda_upstream_heater_2 = struct.unpack('>B'*1, p[22])
+            print("lambda upstream heater 2 : " + str(lambda_upstream_heater_2[0] * 0.3906) + " %")
+            lambda_downstream_heater_1 = struct.unpack('>B'*1, p[23])
+            print("lambda downstream heater 1 : " + str(lambda_downstream_heater_1[0] * 0.3906) + " %")
+            lambda_downstream_heater_2 = struct.unpack('>B'*1, p[24])
+            print("lambda downstream heater 2 : " + str(lambda_downstream_heater_2[0] * 0.3906) + " %")
+
+        else:
+            print("Unknown payload")     
+
+#
+# Bosch Motronic v7.2 (M62TU) - KWP2000 protocol
+#
+
+class ME72(KWP2000):
+    def run(self):
+        for address in [ DME ]:
+            print("Querying DME " + hex(address))
+            source = bytes(b'\xf1')
+            self._execute(address, source, bytes(b'\xa2')) # b8 12 f1 01 a2 f8
+            time.sleep(1.0)
+            self._execute(address, source, bytes(b'\x22\x40\x00')) # b8 12 f1 03 22 40 00 3a
+            time.sleep(1.0)
+            self._execute(address, source, bytes(b'\x22\x40\x03'))
+            time.sleep(1.0)
+            self._execute(address, source, bytes(b'\x22\x40\x04'))
+            time.sleep(1.0)
+            self._execute(address, source, bytes(b'\x22\x40\x07')) # b8 12 f1 03 22 40 07 3d 
+            time.sleep(1.0)
+            #self._execute(address, source, bytes(b'\x22\x40\x05'))
+            #time.sleep(1.0)
 
     def _execute(self, address, source, payload):
         self._write(address, source, payload)
@@ -251,40 +272,72 @@ class ME72(DS2):
             """
                 b8 12 f1 03 22 40 00 3a
 
-                b8 f1 12 2d
-                
-                62 40 00 00 00 80 00 80 00 
+                b8 f1 12 2d                
+                62 40 00 
+                00 00 # injection time 
+                80 00 # Lambdaintegrator 1  
+                80 00 # Lambdaintegrator 2
                 00 # speed
-                00 00 # rpm
-                50 
+                00 00 # current rpm
+                50 # target rpm
                 00 00 # bsnk 1 camshift intake position  
                 00 00 # bsnk 2 camshift intake position
                 65 # intake air tempature
                 60 # coolant temperature 
-                00 # ignition timing 
+                00 # ignition angle 
                 05 # throttle angle 
-                00 # air mass
-                00 a8 d1 7f 00 94 
+                00 00 # air mass
+                a8 d1 # Load 
+                7f # Battery voltage 
+                00 94 # pedal position
                 5e # coolant outlet temperature
-                0c 80 0c 80 0c 80 0c 80 0c 80 0c 80 0c 40 0c 80 08
+                0c 80 0c 80 0c 80 0c 80 0c 80 0c 80 0c 40 0c 80 # knock sensor of 8 cyl
+                08 # check sum
             """
+            injection_time = struct.unpack('>H'*1, p[3:5])
+            print("injection time : " + str(injection_time[0] * 0.016) + " ms")
             speed = p[9]
             print("speed : " + str(speed * 1.25) + " km/h")
             rpm = struct.unpack('>H'*1, p[10:12])
-            print("rpm : " + str(rpm[0] * 0.25) + " RPM")
+            print("current rpm : " + str(rpm[0] * 0.25) + " RPM")
+            rpm = p[12]
+            print("target rpm : " + str(rpm * 10) + " RPM")
             intake_air_temp = p[17]
             print("intake air temp : " + str(intake_air_temp * 0.75 - 48.0) + " C")
             coolant_temp = p[18]
             print("coolant temp : " + str(coolant_temp * 0.75 - 48.0) + " C")
+            ignation_angle = struct.unpack('>B'*1, p[19])
+            print("ignation angle : " + str(ignation_angle[0] * 0.75) + " Grad")
             engine_throttle_angle = p[20]
             print("engine throttle angle : " + str(engine_throttle_angle * 0.39216) + " %")
-            engine_air_mass = p[21]
-            print("engine air mass : " + str(engine_air_mass * 0.1) + " kg/h")
+            engine_air_mass = struct.unpack('>H'*1, p[21:23])
+            print("engine air mass : " + str(engine_air_mass[0] * 0.1) + " kg/h")
+            load = struct.unpack('>H'*1, p[23:25])
+            print("load : " + str(load[0] * 0.0015259) + " %")
+            battery_voltage = p[25]
+            print("battery voltage : " + str(battery_voltage * 0.095) + " V")
+            pedal_position = struct.unpack('>H'*1, p[26:28])
+            print("pedal position : " + str(pedal_position[0] * 0.0048828) + " V")
             coolant_outlet_temp = p[28]
             print("coolant outlet temp : " + str(coolant_outlet_temp * 0.75 - 48.0) + " C")
+            r = struct.unpack('>H'*8, p[29:45])
+            for i in range(8):
+                print("Knock sensor Cyl. " + str(i+1) + " : " + str(r[i] * 0.019531) + " V")
         
-        elif payload == bytes(b'\x22\x40\x05'):
-            print("Unimplement")
+        elif payload == bytes(b'\x22\x40\x04'):
+            r = struct.unpack('>H'*1, p[3:5])
+            print("Adaptation additive 1 : " + str(r * 0.046875) + " %")
+            r = struct.unpack('>H'*1, p[5:7])
+            print("Adaptation additive 2 : " + str(r * 0.046875) + " %")
+            r = struct.unpack('>H'*1, p[7:9])
+            print("Adaptation multiplicative 1 : " + str(r * 0.0000305) + " %")
+            r = struct.unpack('>H'*1, p[9:11])
+            print("Adaptation multiplicative 2 : " + str(r * 0.0000305) + " %")
+
+        elif payload == bytes(b'\x22\x40\x03'):
+            r = struct.unpack('>H'*8, p[3:])
+            for i in range(8):
+                print("Roughness Cyl. " + str(i+1) + " : " + str(r[i] * 0.0027756) + " sec-1")
 
         elif payload == bytes(b'\x22\x40\x07'):
             """
@@ -297,15 +350,13 @@ class ME72(DS2):
             print("oxygen sensor after bank 1 ready : " + str(b & (1 << 3)))
             print("oxygen sensor before bank 2 ready : " + str(b & (1 << 4)))
             print("oxygen sensor before bank 1 ready : " + str(b & (1 << 5)))
-
-    def _checksum(self, message):
-        result = 0
-        for b in message:
-            result ^= b
-        return result
+        else:
+            print("Unknown payload")
 
 #
 # Automatic Transmission ZF5HP24 v8.60.2 (E38/E39/E53)
+# Gearbox Controller GS8.60.2 for E38, E39
+# Decode reference Ecu/GS8602.PRG
 #
 
 class ZF5HP24(DS2):
@@ -315,6 +366,8 @@ class ZF5HP24(DS2):
             data = self._execute(address, bytes(b'\x00'))
             time.sleep(1.0)
             data = self._execute(address, bytes(b'\x0B\x03'))
+            time.sleep(1.0)
+            data = self._execute(address, bytes(b'\x04\x01'))
             time.sleep(1.0)
 
     def _execute(self, address, payload):
@@ -342,6 +395,23 @@ class ZF5HP24(DS2):
 
         p = reply[2:]
         if payload == bytes(b'\x00'):
+            """
+                32 04 00 36 
+                32 2e 
+                a0 # status 
+                31 34 32 33 39 35 33 # part number 
+                32 42 # hardware number
+                30 30 # coding index
+                31 31 #diag index 
+                36 30 # bus index 
+                34 38 # build date week 
+                39 39 # build date year 
+                30 30 30 30 30 30 30 30 30 30 # life number 
+                30 39 # software number 
+                31 30 # ai number 
+                46 4f 34 38 39 30 32 36 36 # product number 
+                cb 
+            """
             part_number = p[1:8]
             print("part number : " + part_number.decode('utf-8'))
             hardware_number = p[8:10]
@@ -352,12 +422,24 @@ class ZF5HP24(DS2):
             print("diag index : " + diag_index.decode('utf-8'))
             bus_index = p[14:16]
             print("bus index : " + bus_index.decode('utf-8'))
+            build_date_week = p[16:18]
+            print("build date week : " + build_date_week.decode('utf-8'))
+            build_date_year = p[18:20]
+            print("build date year : " + build_date_year.decode('utf-8'))
+            life_number = p[20:30]
+            printf("life number : " + life_number.decode('utf-8'))
+            software_number = p[30:32]
+            print("software number : " + software_number.decode('utf-8'))
+            ai_number = p[32:34]
+            print("ai number : " + ai_number.decode('utf-8'))
+            product_number = p[34:43]
+            print('product number : ' + product_number.decode('utf-8'))
 
         elif payload == bytes(b'\x0B\x03'):
             """
-                32 05 0b 03 3f
-                
-                32 1c a0 
+                32 05 0b 03 3f                
+                32 1c 
+                a0 # status
                 00 # rpm
                 00 # input turbine rpm 
                 00 # output shift rpm 
@@ -425,44 +507,12 @@ class ZF5HP24(DS2):
             else:
                 print("vehicle in curve : no")
 
-    def _write(self, address, payload):
-        size = 2 + len(payload) + 1
-        p = bytearray()
-        p.append(address)
-        p.append(size)
-        for x in payload:
-            p.append(x)
-        p.append(self._checksum(p))
-        print("TX : " + ''.join('{:02x} '.format(x) for x in p))
-        self._device.write(p)
+        elif payload == bytes(b'\x04\x01'):
+            error_code_count = p[1]
+            print("error code count : " + str(error_code_count))
 
-    def _read(self):
-        p = bytearray()
-        try:
-            address = self._device.read(1)[0]
-        except IndexError:
-            return None
-        p.append(address)
-        size = self._device.read(1)[0]
-        p.append(size)
-        remaining = ord(size) - 3
-        if remaining > 0:
-            payload = self._device.read(remaining)
-            for x in payload:
-                p.append(x)
-        expected_checksum = self._checksum(p)
-        actual_checksum = self._device.read(1)[0]
-        p.append(actual_checksum)
-        print("RX : " + ''.join('{:02x} '.format(x) for x in p))
-        if ord(actual_checksum) != expected_checksum:
-            raise ProtocolError("invalid checksum")
-        return p
-
-    def _checksum(self, message):
-        result = 0
-        for b in message:
-            result ^= b
-        return result
+        else:
+            print("Unknown payload")
 
 class ProtocolError(Exception):
     pass
@@ -483,5 +533,6 @@ egs.run()
 dme = ME72()
 dme.run()
 
+ds2 = DS2()
 while 1:
-    egs.sniffer()
+    ds2.sniffer()
