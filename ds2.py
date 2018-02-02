@@ -359,6 +359,72 @@ class ME72(KWP2000):
 # Decode reference Ecu/GS8602.PRG
 #
 
+error_description = {
+    0x01:       "Pressure controller EDS 1",
+    0x02:       "Pressure controller EDS 2",
+    0x03:       "Pressure controller EDS 3",
+    0x04:       "Pressure controller EDS 4",
+    0x05:       "Pressure controller EDS 5",
+    0x0F:       "Pressure controller EDS Total current",
+    0x10:       "Solenoid Valve 1",
+    0x11:       "Solenoid Valve 2",
+    0x12:       "Solenoid Valve 3",
+    0x13:       "Lift magnet Shift-Lock",
+    0x20:       "Output rev. sensor (n-ab)",
+    0x21:       "Turbine rev. sensor",
+    0x22:       "Sump oil temperature sensor",
+    0x30:       "Torque Converter Clutch - too much slip",
+    0x31:       "Symptom gear check",
+    0x32:       "Gear Check 1",
+    0x33:       "Gear Check 1M/N",
+    0x34:       "Gear Check 2",
+    0x35:       "Gear Check 3",
+    0x36:       "Gear Check 4",
+    0x37:       "Gear Check 5",
+    0x38:       "Symptom GLUE",
+    0x39:       "GLUE-check 2/3",
+    0x3A:       "GLUE-check 3/4",
+    0x3B:       "Stalling speed",
+    0x3C:       "Gearbox Switch",
+    0x3D:       "Gearbox temperature check",
+    0x50:       "ECU internal error 1 (EPROM)",
+    0x51:       "ECU internal error 2 (EEPROM)",
+    0x52:       "ECU internal error 3 (Watchdog)",
+    0x53:       "ECU internal error 4 (FET)",
+    0x60:       "V-Batt. supply Cl. 87",
+    0x61:       "V-Batt. supply Cl. 30",
+    0x70:       "Program Switch",
+    0x71:       "Kick-Down Switch",
+    0x72:       "Steptronic Switch",
+    0x80:       "CAN-Bus check",
+    0x81:       "CAN-Time-Out DME",
+    0x82:       "CAN-Time-Out ASC",
+    0x90:       "CAN Version error",
+    0x93:       "CAN Throttle valve",
+    0x94:       "CAN Engine temperature",
+    0x95:       "CAN Wheel speeds",
+    0x97:       "CAN Brake signal"
+}
+
+error_flags = {
+    0x01:       "Plausibility",
+    0x02:       "Short circuit to batt+",
+    0x03:       "Short circuit to ground",
+    0x04:       "Open circuit",
+    0x05:       "Open circuit or Short circuit to batt+",
+    0x06:       "Open circuit or Short circuit to ground",
+    0x07:       "Too large",
+    0x08:       "Too small",
+    0x09:       "No change",
+    0x0F:       "No suitable error code",
+    0x10:       "Error activates MIL",
+    0x20:       "Sporadic error",
+    0x40:       "Replacement function active",
+    0x80:       "Error present",
+    0xFE:       "Gen. error",
+    0xFF:       "Unknown"
+}
+
 class ZF5HP24(DS2):
     def run(self):
         for address in [ EGS ]:
@@ -510,7 +576,32 @@ class ZF5HP24(DS2):
         elif payload == bytes(b'\x04\x01'):
             error_code_count = p[1]
             print("error code count : " + str(error_code_count))
-
+            error_code = p[2:4]
+            did = p[2]
+            fid = p[3]
+            freq = p[4]
+            printf("(" + str(freg) + ") " + "error code 0 : " + error_code.decode('utf-8') + " : " + error_description[did] + " : " + error_flags[fid])
+            error_code = p[21:23]
+            did = p[21]
+            fid = p[22]
+            freq = p[23]
+            printf("(" + str(freg) + ") " + "error code 1 : " + error_code.decode('utf-8') + " : " + error_description[did] + " : " + error_flags[fid])
+            error_code = p[40:42]
+            did = p[40]
+            fid = p[41]
+            freq = p[42]
+            printf("(" + str(freg) + ") " + "error code 2 : " + error_code.decode('utf-8') + " : " + error_description[did] + " : " + error_flags[fid])
+            error_code = p[59:61]
+            did = p[59]
+            fid = p[60]
+            freq = p[61]
+            printf("(" + str(freg) + ") " + "error code 3 : " + error_code.decode('utf-8') + " : " + error_description[did] + " : " + error_flags[fid])
+            error_code = p[78:80]
+            did = p[78]
+            fid = p[79]
+            freq = p[80]
+            printf("(" + str(freg) + ") " + "error code 4 : " + error_code.decode('utf-8') + " : " + error_description[did] + " : " + error_flags[fid])
+                        
         else:
             print("Unknown payload")
 
