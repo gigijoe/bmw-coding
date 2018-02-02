@@ -484,4 +484,4 @@ dme = ME72()
 dme.run()
 
 while 1:
-    dme.sniffer()
+    egs.sniffer()
