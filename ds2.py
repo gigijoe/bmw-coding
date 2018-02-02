@@ -36,6 +36,7 @@ class K_Line(object):
 
 class DS2(K_Line):
     def sniffer(self):
+        print("DS2 sniffer ...")
         self._read()
 
     def _write(self, address, payload):
@@ -72,12 +73,39 @@ class DS2(K_Line):
             raise ProtocolError("invalid checksum")
         return p
 
+    def _execute(self, address, payload):
+        self._write(address, payload)
+        echo = self._read()
+        #self._device.timeout = 0.1
+        reply = self._read()
+        if reply is None:
+            print("No response - Invalid Address ...")
+            return None
+        sender = reply[0]
+        length = reply[1]
+        status = reply[2]
+        if sender != address:
+            print("Unexpected address")
+            return
+        if status != 0xa0:
+            if status == 0xa1:
+                print("Computer busy")
+            elif status == 0xa2:
+                print("Invalid parameter")
+            elif status == 0xff:
+                print("Invalid command")
+            else:
+                print("Unknown status")
+            return None
+        return reply
+
 #
 # KWP2000
 #
 
 class KWP2000(K_Line):
     def sniffer(self):
+        print("KWP2000 sniffer ...")
         self._read()
 
     def _write(self, address, source, payload):
@@ -120,6 +148,19 @@ class KWP2000(K_Line):
             raise ProtocolError("invalid checksum")
         return p
 
+    def _execute(self, address, source, payload):
+        self._write(address, source, payload)
+        echo = self._read()
+        #self._device.timeout = 0.1
+        reply = self._read()
+        if reply is None:
+            print("No response - Invalid Address ...")
+            return None
+        header = reply[0]
+        if header != 0xB8:
+            print("Unexpected header")
+            return None
+
 #
 # MS41
 #
@@ -135,29 +176,8 @@ class MS41(DS2):
             #data = struct.unpack('<' + 'B'*len(raw), raw)
 
     def _execute(self, address, payload):
-        self._write(address, payload)
-        echo = self._read()
-        #self._device.timeout = 0.1
-        reply = self._read()
+        reply = super(MS41, self)._execute(address, payload)
         if reply is None:
-            raise InvalidAddress("invalid address")
-        sender = reply[0]
-        length = reply[1]
-        status = reply[2]
-        #sender, payload = reply
-        #self._device.timeout = None
-        if sender != address:
-            raise ProtocolError("unexpected sender")
-        #status = payload[0]
-        if status != 0xa0:
-            if status == 0xa1:
-                raise ComputerBusy("computer busy")
-            elif status == 0xa2:
-                raise InvalidCommand("invalid parameter")
-            elif status == 0xff:
-                raise InvalidCommand("invalid command")
-            else:
-                raise ProtocolError("unknown status")
             return
 
         p = reply[2:]
@@ -222,15 +242,9 @@ class ME72(KWP2000):
             #time.sleep(1.0)
 
     def _execute(self, address, source, payload):
-        self._write(address, source, payload)
-        echo = self._read()
-        #self._device.timeout = 0.1
-        reply = self._read()
+        reply = super(ME72, self)._execute(address, source, payload)
         if reply is None:
-            raise InvalidAddress("invalid header")
-        header = reply[0]
-        if header != 0xB8:
-            raise ProtocolError("unexpected header")
+            return
 
         p = reply[4:]
         if payload == bytes(b'\xa2'):
@@ -437,26 +451,8 @@ class ZF5HP24(DS2):
             time.sleep(1.0)
 
     def _execute(self, address, payload):
-        self._write(address, payload)
-        echo = self._read()
-        #self._device.timeout = 0.1
-        reply = self._read()
+        reply = super(ZF5HP24, self)._execute(address, payload)
         if reply is None:
-            raise InvalidAddress("invalid address")
-        sender = reply[0]
-        length = reply[1]
-        status = reply[2]
-        if sender != address:
-            raise ProtocolError("unexpected sender")
-        if status != 0xa0:
-            if status == 0xa1:
-                raise ComputerBusy("computer busy")
-            elif status == 0xa2:
-                raise InvalidCommand("invalid parameter")
-            elif status == 0xff:
-                raise InvalidCommand("invalid command")
-            else:
-                raise ProtocolError("unknown status")
             return
 
         p = reply[2:]
@@ -604,19 +600,6 @@ class ZF5HP24(DS2):
                         
         else:
             print("Unknown payload")
-
-class ProtocolError(Exception):
-    pass
-
-class ComputerBusy(Exception):
-    pass
-
-class InvalidAddress(Exception):
-    pass
-
-class InvalidCommand(Exception):
-    pass
-
 
 egs = ZF5HP24()
 egs.run()
