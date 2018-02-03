@@ -176,7 +176,7 @@ class MS41(DS2):
         for address in [ DME ]:
             print("Querying DME " + hex(address))
             data = self._execute(address, bytes(b'\x00'))
-            time.sleep(1.0)
+            time.sleep(0.2)
             #raw = b'\x12\x1D\xA0\x02\xBF\x00\x26\x17\xAB\x4E\x41\x59\x02\x49\x07\x24\x6A\x88\x22\x7F\x80\x00\x80\x00\x38\x38\xCE\xCE\x09'
             #raw = b'\x12\x1D\xA0\x03\x20\x00\x24\x10\xA3\x91\x38\x6A\x01\xB9\x00\xCE\x4E\x22\x1E\x88\x8F\x3A\x6D\xBA\x87\x6C\xCE\xCE\xDD'
             #data = struct.unpack('<' + 'B'*len(raw), raw)
@@ -235,17 +235,17 @@ class ME72(KWP2000):
             print("Querying DME " + hex(address))
             source = bytes(b'\xf1')
             self._execute(address, source, bytes(b'\xa2')) # b8 12 f1 01 a2 f8
-            time.sleep(1.0)
+            time.sleep(0.2)
             self._execute(address, source, bytes(b'\x22\x40\x00')) # b8 12 f1 03 22 40 00 3a
-            time.sleep(1.0)
+            time.sleep(0.2)
             self._execute(address, source, bytes(b'\x22\x40\x03'))
-            time.sleep(1.0)
+            time.sleep(0.2)
             self._execute(address, source, bytes(b'\x22\x40\x04'))
-            time.sleep(1.0)
+            time.sleep(0.2)
+            self._execute(address, source, bytes(b'\x22\x40\x05'))
+            time.sleep(0.2)
             self._execute(address, source, bytes(b'\x22\x40\x07')) # b8 12 f1 03 22 40 07 3d 
-            time.sleep(1.0)
-            #self._execute(address, source, bytes(b'\x22\x40\x05'))
-            #time.sleep(1.0)
+            time.sleep(0.2)
 
     def _execute(self, address, source, payload):
         reply = super(ME72, self)._execute(address, source, payload)
@@ -359,16 +359,6 @@ class ME72(KWP2000):
             r = struct.unpack('>h'*1, p[43:45])
             print("Knock sensor Cyl. 8 : " + str(r[0] * 0.019531) + " V")
             
-        elif payload == bytes(b'\x22\x40\x04'):
-            r = struct.unpack('>H'*1, p[3:5])
-            print("Adaptation additive 1 : " + str(r[0] * 0.046875) + " %")
-            r = struct.unpack('>H'*1, p[5:7])
-            print("Adaptation additive 2 : " + str(r[0] * 0.046875) + " %")
-            r = struct.unpack('>H'*1, p[7:9])
-            print("Adaptation multiplicative 1 : " + str(r[0] * 0.0000305) + " %")
-            r = struct.unpack('>H'*1, p[9:11])
-            print("Adaptation multiplicative 2 : " + str(r[0] * 0.0000305) + " %")
-
         elif payload == bytes(b'\x22\x40\x03'):
             r = struct.unpack('>h'*1, p[3:5])
             print("Roughness Cyl. 1 " + str(r[0] * 0.0027756) + " sec-1")
@@ -387,6 +377,31 @@ class ME72(KWP2000):
             r = struct.unpack('>h'*1, p[17:19])
             print("Roughness Cyl. 8 " + str(r[0] * 0.0027756) + " sec-1")
         
+        elif payload == bytes(b'\x22\x40\x04'):
+            r = struct.unpack('>H'*1, p[3:5])
+            print("Adaptation additive 1 : " + str(r[0] * 0.046875) + " %")
+            r = struct.unpack('>H'*1, p[5:7])
+            print("Adaptation additive 2 : " + str(r[0] * 0.046875) + " %")
+            r = struct.unpack('>H'*1, p[7:9])
+            print("Adaptation multiplicative 1 : " + str(r[0] * 0.0000305) + " %")
+            r = struct.unpack('>H'*1, p[9:11])
+            print("Adaptation multiplicative 2 : " + str(r[0] * 0.0000305) + " %")
+
+        elif payload == bytes(b'\x22\x40\x05'):
+            r = p[9]
+            print("leak diagnostic pump : " + "On" if (r & 0x01) > 0 else "Off")
+            print("secondary air pump value : " + "On" if (r & 0x02) > 0 else "Off")
+            print("oxgen sensor heater before bank 1 : " + "On" if (r & 0x10) > 0 else "Off")
+            print("oxgen sensor heater before bank 2 : " + "On" if (r & 0x20) > 0 else "Off")
+            print("oxgen sensor heater after bank 1 : " + "On" if (r & 0x40) > 0 else "Off")
+            print("oxgen sensor heater after bank 2 : " + "On" if (r & 0x80) > 0 else "Off")
+            r = p[10]
+            print("exhaust gas recirculation : " + "On" if (r & 0x08) > 0 else "Off")
+            print("electric fan : " + "On" if (r & 0x10) > 0 else "Off")
+            print("fuel pump : " + "On" if (r & 0x20) > 0 else "Off")
+            print("thermostat : " + "On" if (r & 0x40) > 0 else "Off")
+            print("start mode : " + "On" if (r & 0x80) > 0 else "Off")
+
         elif payload == bytes(b'\x22\x40\x07'):
             """
             b8 f1 12 05 62 40 07 01 90 ea
@@ -478,11 +493,11 @@ class ZF5HP24(DS2):
         for address in [ EGS ]:
             print("Querying EGS " + hex(address))
             data = self._execute(address, bytes(b'\x00'))
-            time.sleep(1.0)
+            time.sleep(0.2)
             data = self._execute(address, bytes(b'\x0B\x03'))
-            time.sleep(1.0)
+            time.sleep(0.2)
             data = self._execute(address, bytes(b'\x04\x01'))
-            time.sleep(1.0)
+            time.sleep(0.2)
 
     def _execute(self, address, payload):
         reply = super(ZF5HP24, self)._execute(address, payload)
@@ -593,15 +608,9 @@ class ZF5HP24(DS2):
             else:
                 print("shifter steptronic : neutral")
             kickdown = gear & 0x10
-            if kickdown:
-                print("kickdown : yes")
-            else:
-                print("kickdown : no")
+            print("kickdown : " + "yes" if kickdown > 0 else "No")
             vehicle_in_curve = gear & 0x8
-            if vehicle_in_curve:
-                print("vehicle in curve : yes")
-            else:
-                print("vehicle in curve : no")
+            print("vehicle in curve : " + "yes" if vehicle_in_curve > 0 else "No")
 
         elif payload == bytes(b'\x04\x01'):
             error_code_count = p[1]
@@ -611,31 +620,31 @@ class ZF5HP24(DS2):
                 did = p[2]
                 fid = p[3]
                 freq = p[4]
-                printf("(" + str(freg) + ") " + "error code 0 : " + error_code.decode('utf-8') + " : " + error_description[did] + " : " + error_flags[fid])
+                print("(" + str(freg) + ") " + "error code 0 : " + error_code.decode('utf-8') + " : " + error_description[did] + " : " + error_flags[fid])
             if len(p) >= 24:
                 error_code = p[21:23]
                 did = p[21]
                 fid = p[22]
                 freq = p[23]
-                printf("(" + str(freg) + ") " + "error code 1 : " + error_code.decode('utf-8') + " : " + error_description[did] + " : " + error_flags[fid])
+                print("(" + str(freg) + ") " + "error code 1 : " + error_code.decode('utf-8') + " : " + error_description[did] + " : " + error_flags[fid])
             if len(p) >= 43:
                 error_code = p[40:42]
                 did = p[40]
                 fid = p[41]
                 freq = p[42]
-                printf("(" + str(freg) + ") " + "error code 2 : " + error_code.decode('utf-8') + " : " + error_description[did] + " : " + error_flags[fid])
+                print("(" + str(freg) + ") " + "error code 2 : " + error_code.decode('utf-8') + " : " + error_description[did] + " : " + error_flags[fid])
             if len(p) >= 62:
                 error_code = p[59:61]
                 did = p[59]
                 fid = p[60]
                 freq = p[61]
-                printf("(" + str(freg) + ") " + "error code 3 : " + error_code.decode('utf-8') + " : " + error_description[did] + " : " + error_flags[fid])
+                print("(" + str(freg) + ") " + "error code 3 : " + error_code.decode('utf-8') + " : " + error_description[did] + " : " + error_flags[fid])
             if len(p) >= 81:
                 error_code = p[78:80]
                 did = p[78]
                 fid = p[79]
                 freq = p[80]
-                printf("(" + str(freg) + ") " + "error code 4 : " + error_code.decode('utf-8') + " : " + error_description[did] + " : " + error_flags[fid])
+                print("(" + str(freg) + ") " + "error code 4 : " + error_code.decode('utf-8') + " : " + error_description[did] + " : " + error_flags[fid])
          
         else:
             print("Unknown payload")
