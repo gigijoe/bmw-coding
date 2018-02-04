@@ -75,6 +75,7 @@ class DS2(K_Line):
         actual_checksum = self._device.read(1)[0]
         p.append(actual_checksum)
         print("RX : " + ''.join('{:02x} '.format(x) for x in p))
+        print("RAW : " + ''.join('\\x{:02x}'.format(x) for x in p))
         if ord(actual_checksum) != expected_checksum:
             raise ProtocolError("invalid checksum")
         return p
@@ -150,6 +151,7 @@ class KWP2000(K_Line):
         actual_checksum = self._device.read(1)[0]
         p.append(actual_checksum)
         print("RX : " + ''.join('{:02x} '.format(x) for x in p))
+        print("RAW : " + ''.join('\\x{:02x}'.format(x) for x in p))
         if ord(actual_checksum) != expected_checksum:
             raise ProtocolError("invalid checksum")
         return p
@@ -251,7 +253,20 @@ class ME72(KWP2000):
         reply = super(ME72, self)._execute(address, source, payload)
         if reply is None:
             return
-
+        """
+        if payload == bytes(b'\x22\x40\x00'):
+            reply = bytearray(b'\xb8\xf1\x12\x2d\x62\x40\x00\x00\xf6\x7e\x47\x81\x5a\x00\x0b\x19\x46\x00\x83\x01\x81\x5d\x7b\x0c\x07\x00\xdd\x1f\x9f\x91\x00\x94\x57\x00\x1d\x00\x1d\x00\x1d\x00\x1b\x00\x22\x00\x1c\x00\x1b\x00\x1d\x0b')
+        elif payload == bytes(b'\x22\x40\x03'):
+            reply = bytearray(b'\xb8\xf1\x12\x18\x62\x40\x03\xff\x6f\xff\xac\xff\xe8\xff\xb1\x00\x32\x00\x7f\x00\x53\x00\x7e\x01\x00\xdf\x01\x66\x21')
+        elif payload == bytes(b'\x22\x40\x04'):
+            reply = bytearray(b'\xb8\xf1\x12\x13\x62\x40\x04\x00\x44\x00\x34\x83\x17\x80\x60\x6c\x6c\x0e\x0e\x01\x74\x01\x5d\x43')
+        elif payload == bytes(b'\x22\x40\x05'):
+            reply = bytearray(b'\xb8\xf1\x12\x0b\x62\x40\x05\x00\x00\x00\xf2\xf2\xff\x00\x00\x88')
+        elif payload == bytes(b'\x22\x40\x07'):
+            reply = bytearray(b'\xb8\xf1\x12\x05\x62\x40\x07\xf1\x90\x1a')
+        else:
+            return
+        """
         p = reply[4:]
         if payload == bytes(b'\xa2'):
             """
@@ -320,8 +335,8 @@ class ME72(KWP2000):
             print("speed : " + str(speed * 1.25) + " km/h")
             rpm = struct.unpack('>H'*1, p[10:12])
             print("current rpm : " + str(rpm[0] * 0.25) + " RPM")
-            rpm = p[12]
-            print("target rpm : " + str(rpm * 10) + " RPM")
+            target_rpm = p[12]
+            print("target rpm : " + str(target_rpm * 10) + " RPM")
             intake_air_temp = p[17]
             print("intake air temp : " + str(intake_air_temp * 0.75 - 48.0) + " C")
             coolant_temp = p[18]
@@ -342,45 +357,45 @@ class ME72(KWP2000):
             coolant_outlet_temp = p[28]
             print("coolant outlet temp : " + str(coolant_outlet_temp * 0.75 - 48.0) + " C")
 
-            r = struct.unpack('>h'*1, p[29:31])
+            r = struct.unpack('>H'*1, p[29:31])
             print("Knock sensor Cyl. 1 : " + str(r[0] * 0.019531) + " V")
-            r = struct.unpack('>h'*1, p[31:33])
+            r = struct.unpack('>H'*1, p[31:33])
             print("Knock sensor Cyl. 2 : " + str(r[0] * 0.019531) + " V")
-            r = struct.unpack('>h'*1, p[33:35])
+            r = struct.unpack('>H'*1, p[33:35])
             print("Knock sensor Cyl. 3 : " + str(r[0] * 0.019531) + " V")
-            r = struct.unpack('>h'*1, p[35:37])
+            r = struct.unpack('>H'*1, p[35:37])
             print("Knock sensor Cyl. 4 : " + str(r[0] * 0.019531) + " V")
-            r = struct.unpack('>h'*1, p[37:39])
+            r = struct.unpack('>H'*1, p[37:39])
             print("Knock sensor Cyl. 5 : " + str(r[0] * 0.019531) + " V")
-            r = struct.unpack('>h'*1, p[39:41])
+            r = struct.unpack('>H'*1, p[39:41])
             print("Knock sensor Cyl. 6 : " + str(r[0] * 0.019531) + " V")
-            r = struct.unpack('>h'*1, p[41:43])
+            r = struct.unpack('>H'*1, p[41:43])
             print("Knock sensor Cyl. 7 : " + str(r[0] * 0.019531) + " V")
-            r = struct.unpack('>h'*1, p[43:45])
+            r = struct.unpack('>H'*1, p[43:45])
             print("Knock sensor Cyl. 8 : " + str(r[0] * 0.019531) + " V")
             
         elif payload == bytes(b'\x22\x40\x03'):
             r = struct.unpack('>h'*1, p[3:5])
-            print("Roughness Cyl. 1 " + str(r[0] * 0.0027756) + " sec-1")
+            print("Roughness Cyl. 1 : " + str(r[0] * 0.0027756) + " sec-1")
             r = struct.unpack('>h'*1, p[5:7])
-            print("Roughness Cyl. 2 " + str(r[0] * 0.0027756) + " sec-1")
+            print("Roughness Cyl. 2 : " + str(r[0] * 0.0027756) + " sec-1")
             r = struct.unpack('>h'*1, p[7:9])
-            print("Roughness Cyl. 3 " + str(r[0] * 0.0027756) + " sec-1")
+            print("Roughness Cyl. 3 : " + str(r[0] * 0.0027756) + " sec-1")
             r = struct.unpack('>h'*1, p[9:11])
-            print("Roughness Cyl. 4 " + str(r[0] * 0.0027756) + " sec-1")
+            print("Roughness Cyl. 4 : " + str(r[0] * 0.0027756) + " sec-1")
             r = struct.unpack('>h'*1, p[11:13])
-            print("Roughness Cyl. 5 " + str(r[0] * 0.0027756) + " sec-1")
+            print("Roughness Cyl. 5 : " + str(r[0] * 0.0027756) + " sec-1")
             r = struct.unpack('>h'*1, p[13:15])
-            print("Roughness Cyl. 6 " + str(r[0] * 0.0027756) + " sec-1")
+            print("Roughness Cyl. 6 : " + str(r[0] * 0.0027756) + " sec-1")
             r = struct.unpack('>h'*1, p[15:17])
-            print("Roughness Cyl. 7 " + str(r[0] * 0.0027756) + " sec-1")
+            print("Roughness Cyl. 7 : " + str(r[0] * 0.0027756) + " sec-1")
             r = struct.unpack('>h'*1, p[17:19])
-            print("Roughness Cyl. 8 " + str(r[0] * 0.0027756) + " sec-1")
+            print("Roughness Cyl. 8 : " + str(r[0] * 0.0027756) + " sec-1")
         
         elif payload == bytes(b'\x22\x40\x04'):
-            r = struct.unpack('>H'*1, p[3:5])
+            r = struct.unpack('>h'*1, p[3:5])
             print("Adaptation additive 1 : " + str(r[0] * 0.046875) + " %")
-            r = struct.unpack('>H'*1, p[5:7])
+            r = struct.unpack('>h'*1, p[5:7])
             print("Adaptation additive 2 : " + str(r[0] * 0.046875) + " %")
             r = struct.unpack('>H'*1, p[7:9])
             print("Adaptation multiplicative 1 : " + str(r[0] * 0.0000305) + " %")
@@ -389,18 +404,18 @@ class ME72(KWP2000):
 
         elif payload == bytes(b'\x22\x40\x05'):
             r = p[9]
-            print("leak diagnostic pump : " + "On" if (r & 0x01) > 0 else "Off")
-            print("secondary air pump value : " + "On" if (r & 0x02) > 0 else "Off")
-            print("oxgen sensor heater before bank 1 : " + "On" if (r & 0x10) > 0 else "Off")
-            print("oxgen sensor heater before bank 2 : " + "On" if (r & 0x20) > 0 else "Off")
-            print("oxgen sensor heater after bank 1 : " + "On" if (r & 0x40) > 0 else "Off")
-            print("oxgen sensor heater after bank 2 : " + "On" if (r & 0x80) > 0 else "Off")
+            print "leak diagnostic pump : %s" % ("On" if (r & 0x01) > 0 else "Off")
+            print "secondary air pump value : %s" % ("On" if (r & 0x02) > 0 else "Off")
+            print "oxgen sensor heater before bank 1 : %s" % ("On" if (r & 0x10) > 0 else "Off")
+            print "oxgen sensor heater before bank 2 : %s" % ("On" if (r & 0x20) > 0 else "Off")
+            print "oxgen sensor heater after bank 1 : %s" % ("On" if (r & 0x40) > 0 else "Off")
+            print "oxgen sensor heater after bank 2 : %s" % ("On" if (r & 0x80) > 0 else "Off")
             r = p[10]
-            print("exhaust gas recirculation : " + "On" if (r & 0x08) > 0 else "Off")
-            print("electric fan : " + "On" if (r & 0x10) > 0 else "Off")
-            print("fuel pump : " + "On" if (r & 0x20) > 0 else "Off")
-            print("thermostat : " + "On" if (r & 0x40) > 0 else "Off")
-            print("start mode : " + "On" if (r & 0x80) > 0 else "Off")
+            print "exhaust gas recirculation : %s" % ("On" if (r & 0x08) > 0 else "Off")
+            print "electric fan : %s" % ("On" if (r & 0x10) > 0 else "Off")
+            print "fuel pump : %s" % ("On" if (r & 0x20) > 0 else "Off")
+            print "thermostat : %s" % ("On" if (r & 0x40) > 0 else "Off")
+            print "start mode : %s" % ("On" if (r & 0x80) > 0 else "Off")
 
         elif payload == bytes(b'\x22\x40\x07'):
             """
@@ -409,10 +424,10 @@ class ME72(KWP2000):
             b = p[3]
             print("neutral switch : " + str(b & (1 << 0)))
             print("acceleration enrichment : " + str(b & (1 << 1)))
-            print("oxygen sensor after bank 2 ready : " + "Yes" if(b & (1 << 2)) > 0 else "No")
-            print("oxygen sensor after bank 1 ready : " + "Yes" if(b & (1 << 3)) > 0 else "No")
-            print("oxygen sensor before bank 2 ready : " + "Yes" if(b & (1 << 4)) > 0 else "No")
-            print("oxygen sensor before bank 1 ready : " + "Yes" if(b & (1 << 5)) > 0 else "No")
+            print "oxygen sensor after bank 2 ready : %s" % ("Yes" if(b & (1 << 2)) > 0 else "No")
+            print "oxygen sensor after bank 1 ready : %s" % ("Yes" if(b & (1 << 3)) > 0 else "No")
+            print "oxygen sensor before bank 2 ready : %s" % ("Yes" if(b & (1 << 4)) > 0 else "No")
+            print "oxygen sensor before bank 1 ready : %s" % ("Yes" if(b & (1 << 5)) > 0 else "No")
         else:
             print("Unknown payload")
 
@@ -503,7 +518,14 @@ class ZF5HP24(DS2):
         reply = super(ZF5HP24, self)._execute(address, payload)
         if reply is None:
             return
-
+        """
+        if payload == bytes(b'\x00'):
+            reply = bytearray(b'\x32\x2e\xa0\x31\x34\x32\x33\x39\x35\x33\x32\x42\x30\x30\x31\x31\x36\x30\x34\x38\x39\x39\x30\x30\x30\x30\x30\x30\x30\x30\x30\x30\x30\x39\x31\x30\x46\x4f\x34\x38\x39\x30\x32\x36\x36\xcb')
+        elif payload == bytes(b'\x0B\x03'):
+            reply = bytearray(b'\x32\x1c\xa0\x15\x13\x00\x00\x02\x54\x4b\xab\x01\x01\x01\x01\x0f\x00\x00\xff\x00\xa2\xdc\x01\xc0\x10\x00\x59\x38')
+        else:
+            return
+        """
         p = reply[2:]
         if payload == bytes(b'\x00'):
             """
@@ -608,9 +630,9 @@ class ZF5HP24(DS2):
             else:
                 print("shifter steptronic : neutral")
             kickdown = gear & 0x10
-            print("kickdown : " + "yes" if kickdown > 0 else "No")
+            print "kickdown : %s" % ("yes" if kickdown > 0 else "No")
             vehicle_in_curve = gear & 0x8
-            print("vehicle in curve : " + "yes" if vehicle_in_curve > 0 else "No")
+            print "vehicle in curve : %s" % ("yes" if vehicle_in_curve > 0 else "No")
 
         elif payload == bytes(b'\x04\x01'):
             error_code_count = p[1]
@@ -649,54 +671,6 @@ class ZF5HP24(DS2):
         else:
             print("Unknown payload")
 
-"""
-p = b'\x62\x40\x00\x00\xf6\x7e\x47\x81\x5a\x00\x0b\x19\x46\x00\x83\x01\x81\x5d\x7b\x0c\x07\x00\xdd\x1f\x9f\x91\x00\x94\x57\x00\x1d\x00\x1d\x00\x1d\x00\x1b\x00\x22\x00\x1c\x00\x1b\x00\x1d\x0b'
-
-r = struct.unpack('>h'*1, p[29:31])
-print("Knock sensor Cyl. 1 : " + str(r[0] * 0.019531) + " V")
-r = struct.unpack('>h'*1, p[31:33])
-print("Knock sensor Cyl. 2 : " + str(r[0] * 0.019531) + " V")
-r = struct.unpack('>h'*1, p[33:35])
-print("Knock sensor Cyl. 3 : " + str(r[0] * 0.019531) + " V")
-r = struct.unpack('>h'*1, p[35:37])
-print("Knock sensor Cyl. 4 : " + str(r[0] * 0.019531) + " V")
-r = struct.unpack('>h'*1, p[37:39])
-print("Knock sensor Cyl. 5 : " + str(r[0] * 0.019531) + " V")
-r = struct.unpack('>h'*1, p[39:41])
-print("Knock sensor Cyl. 6 : " + str(r[0] * 0.019531) + " V")
-r = struct.unpack('>h'*1, p[41:43])
-print("Knock sensor Cyl. 7 : " + str(r[0] * 0.019531) + " V")
-r = struct.unpack('>h'*1, p[43:45])
-print("Knock sensor Cyl. 8 : " + str(r[0] * 0.019531) + " V")
-
-r = struct.unpack('>h'*8, p[29:46])
-for i in range(1):
-    print("Knock sensor Cyl. " + str(i+1) + " : " + str(r[i] * 0.019531) + " V")
-"""
-"""
-p = b'\x62\x40\x03\xff\x6f\xff\xac\xff\xe8\xff\xb1\x00\x32\x00\x7f\x00\x53\x00\x7e\x01\x00\xdf\x01\x66\x21'
-
-r = struct.unpack('>h'*1, p[3:5])
-print("Roughness Cyl. 1 " + str(r[0] * 0.0027756) + " sec-1")
-r = struct.unpack('>h'*1, p[5:7])
-print("Roughness Cyl. 2 " + str(r[0] * 0.0027756) + " sec-1")
-r = struct.unpack('>h'*1, p[7:9])
-print("Roughness Cyl. 3 " + str(r[0] * 0.0027756) + " sec-1")
-r = struct.unpack('>h'*1, p[9:11])
-print("Roughness Cyl. 4 " + str(r[0] * 0.0027756) + " sec-1")
-r = struct.unpack('>h'*1, p[11:13])
-print("Roughness Cyl. 5 " + str(r[0] * 0.0027756) + " sec-1")
-r = struct.unpack('>h'*1, p[13:15])
-print("Roughness Cyl. 6 " + str(r[0] * 0.0027756) + " sec-1")
-r = struct.unpack('>h'*1, p[15:17])
-print("Roughness Cyl. 7 " + str(r[0] * 0.0027756) + " sec-1")
-r = struct.unpack('>h'*1, p[17:19])
-print("Roughness Cyl. 8 " + str(r[0] * 0.0027756) + " sec-1")
-"""
-"""
-b = 16
-print("True" if b > 0 else "False")
-"""
 egs = ZF5HP24()
 egs.run()
 
