@@ -248,6 +248,10 @@ class ME72(KWP2000):
             time.sleep(0.2)
             self._execute(address, source, bytes(b'\x22\x40\x07')) # b8 12 f1 03 22 40 07 3d 
             time.sleep(0.2)
+            self._execute(address, source, bytes(b'\x21\x13'))
+            time.sleep(0.2)
+            self._execute(address, source, bytes(b'\x21\x14'))
+            time.sleep(0.2)
 
     def _execute(self, address, source, payload):
         reply = super(ME72, self)._execute(address, source, payload)
@@ -428,6 +432,28 @@ class ME72(KWP2000):
             print "oxygen sensor after bank 1 ready : %s" % ("Yes" if(b & (1 << 3)) > 0 else "No")
             print "oxygen sensor before bank 2 ready : %s" % ("Yes" if(b & (1 << 4)) > 0 else "No")
             print "oxygen sensor before bank 1 ready : %s" % ("Yes" if(b & (1 << 5)) > 0 else "No")
+        elif payload == bytes(b'\x21\x13'):
+            r = p[2]
+            print("verification time VANOS 1 : " + str(r))
+            r = p[3]
+            print("verification time VANOS 2 : " + str(r))
+            r = struct.unpack('>h'*1, p[4:6])
+            print("early time 1 : " + str(r[0] * 0.01) + " secs")
+            r = struct.unpack('>h'*1, p[6:8])
+            print("early time 2 : " + str(r[0] * 0.01) + " secs")
+            r = struct.unpack('>h'*1, p[8:10])
+            print("delay time 1 : " + str(r[0] * 0.01) + " secs")
+            r = struct.unpack('>h'*1, p[10:12])
+            print("delay time 2 : " + str(r[0] * 0.01) + " secs")
+        elif payload == bytes(b'\x21\x14'):
+            r = p[2]
+            print("VANOS 1 tightness : " + str(r))
+            r = p[3]
+            print("VANOS 2 tightness : " + str(r))
+            r = struct.unpack('>h'*1, p[4:6])
+            print("actual angle for VANOS 1 : " + str(r[0] * 0.0039) + " GrandKW")
+            r = struct.unpack('>h'*1, p[6:8])
+            print("actual angle for VANOS 2 : " + str(r[0] * 0.0039) + " GrandKW")
         else:
             print("Unknown payload")
 
